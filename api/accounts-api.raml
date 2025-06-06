@@ -1,0 +1,323 @@
+#%RAML 1.0
+title: Accounts API
+description: This API manages account information and balances.
+version: 1.0.0
+baseUri: http://localhost:8081
+protocols: [HTTP]
+
+mediaType: application/json
+
+annotationTypes:
+  contact:
+    type: object
+    properties:
+      email: string
+
+(contact):
+  email: stephen.brown@konghq.com
+
+types:
+  Account:
+    type: object
+    description: Represents a bank account with its core details including ID, type, and current balance.
+    properties:
+      account_id:
+        type: string
+        description: Unique identifier for the account (UUID v4)
+        example: "123e4567-e89b-12d3-a456-426614174000"
+      type:
+        type: string
+        description: The type of the account (e.g., checking, savings)
+        example: "checking"
+      balance:
+        type: number
+        description: The current balance of the account in the account's currency
+        example: 1500
+    example:
+      account_id: "123e4567-e89b-12d3-a456-426614174000"
+      type: "checking"
+      balance: 1500
+
+  CreateAccountRequest:
+    type: object
+    description: Request payload for creating a new account.
+    properties:
+      type:
+        type: string
+        description: The type of account to create (e.g., checking, savings)
+        example: "savings"
+      initial_balance:
+        type: number
+        description: The initial balance to fund the account with
+        example: 5000
+    example:
+      type: "savings"
+      initial_balance: 5000
+
+  UpdateBalanceRequest:
+    type: object
+    description: Request payload for updating an account's balance via credit or debit operations.
+    properties:
+      amount:
+        type: number
+        description: The amount to credit or debit from the account
+        example: 100
+    example:
+      amount: 100
+
+  ErrorResponse:
+    type: object
+    description: Standard error response structure for all error cases.
+    properties:
+      error_code:
+        type: string
+        description: A standardized error code identifying the type of error
+        enum: [INTERNAL_ERROR, NOT_FOUND, INSUFFICIENT_FUNDS, INVALID_INPUT]
+        example: "NOT_FOUND"
+      message:
+        type: string
+        description: A human-readable description of the error
+        example: "The requested account does not exist."
+    example:
+      error_code: "NOT_FOUND"
+      message: "The requested account does not exist."
+
+/health:
+  displayName: Health Check
+  description: Health check endpoints for monitoring service status
+  get:
+    displayName: Health check endpoint
+    description: Returns the API's health status
+    responses:
+      200:
+        description: API is healthy
+        body:
+          application/json:
+            type: string
+            examples:
+              success: "Accounts API is running"
+  head:
+    displayName: Health check endpoint (HEAD)
+    description: Returns the API's health status without body
+    responses:
+      200:
+        description: API is healthy
+
+/accounts:
+  displayName: Accounts
+  description: Operations related to account management (retrieval and balance updates)
+  get:
+    displayName: List all accounts
+    description: Returns a list of all accounts with basic details.
+    responses:
+      200:
+        description: A list of accounts was successfully retrieved
+        body:
+          application/json:
+            type: Account[]
+            examples:
+              multiple_accounts:
+                - account_id: "123e4567-e89b-12d3-a456-426614174000"
+                  type: "checking"
+                  balance: 1500
+                - account_id: "987fcdeb-51a2-43e7-89bc-765432198765"
+                  type: "savings"
+                  balance: 5000
+      500:
+        description: Failed to retrieve accounts due to internal server error
+        body:
+          application/json:
+            type: ErrorResponse
+            examples:
+              lock_error:
+                error_code: "INTERNAL_ERROR"
+                message: "Lock error: failed to acquire lock while listing accounts"
+  post:
+    displayName: Create a new account
+    description: Creates a new account with an initial balance. The account ID is automatically generated.
+    body:
+      application/json:
+        type: CreateAccountRequest
+        description: Details for the new account including type and initial balance. The account ID will be automatically generated.
+        examples:
+          checking_account:
+            type: "checking"
+            initial_balance: 1000
+          savings_account:
+            type: "savings"
+            initial_balance: 5000
+    responses:
+      201:
+        description: Account created successfully
+        body:
+          application/json:
+            type: Account
+            examples:
+              new_account:
+                account_id: "123e4567-e89b-12d3-a456-426614174000"
+                type: "checking"
+                balance: 1000
+      400:
+        description: Failed to create account due to invalid input
+        body:
+          application/json:
+            type: ErrorResponse
+            examples:
+              invalid_balance:
+                error_code: "INVALID_INPUT"
+                message: "Failed to create account: Initial balance must be non-negative"
+      500:
+        description: Failed to create account due to internal server error
+        body:
+          application/json:
+            type: ErrorResponse
+            examples:
+              creation_error:
+                error_code: "INTERNAL_ERROR"
+                message: "Failed to create account: Internal server error occurred"
+
+  /{accountId}:
+    displayName: Account by ID
+    uriParameters:
+      accountId:
+        type: string
+        description: The UUID of the account to retrieve
+        example: "123e4567-e89b-12d3-a456-426614174000"
+    get:
+      displayName: Retrieve a single account
+      description: Returns details for the specified account including current balance.
+      responses:
+        200:
+          description: Account details retrieved successfully
+          body:
+            application/json:
+              type: Account
+              examples:
+                checking_account:
+                  account_id: "123e4567-e89b-12d3-a456-426614174000"
+                  type: "checking"
+                  balance: 1500
+        404:
+          description: Account lookup failed - specified account ID does not exist
+          body:
+            application/json:
+              type: ErrorResponse
+              examples:
+                not_found:
+                  error_code: "NOT_FOUND"
+                  message: "Failed to retrieve account: ID 123e4567-e89b-12d3-a456-426614174000 not found"
+        500:
+          description: Failed to retrieve account details due to internal server error
+          body:
+            application/json:
+              type: ErrorResponse
+              examples:
+                server_error:
+                  error_code: "INTERNAL_ERROR"
+                  message: "Failed to retrieve account: Internal server error occurred"
+
+    /debit:
+      displayName: Debit Account
+      post:
+        displayName: Debit an account
+        description: Decreases the account's balance by the specified amount.
+        body:
+          application/json:
+            type: UpdateBalanceRequest
+            description: Specifies the amount to debit from the account balance.
+            examples:
+              small_debit:
+                amount: 100
+              large_debit:
+                amount: 1000
+        responses:
+          200:
+            description: Account debited successfully
+            body:
+              application/json:
+                type: Account
+                examples:
+                  successful_debit:
+                    account_id: "123e4567-e89b-12d3-a456-426614174000"
+                    type: "checking"
+                    balance: 900
+          400:
+            description: Debit operation failed due to insufficient funds or invalid amount
+            body:
+              application/json:
+                type: ErrorResponse
+                examples:
+                  insufficient_funds:
+                    error_code: "INSUFFICIENT_FUNDS"
+                    message: "Failed to debit account: Insufficient funds - balance is 900.00, attempted to debit 1000.00"
+          404:
+            description: Debit operation failed - account not found
+            body:
+              application/json:
+                type: ErrorResponse
+                examples:
+                  not_found:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to debit account: Account does not exist"
+          500:
+            description: Failed to process debit operation due to internal server error
+            body:
+              application/json:
+                type: ErrorResponse
+                examples:
+                  server_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to debit account: Internal server error occurred"
+
+    /credit:
+      displayName: Credit Account
+      post:
+        displayName: Credit an account
+        description: Increases the account's balance by the specified amount.
+        body:
+          application/json:
+            type: UpdateBalanceRequest
+            description: Specifies the amount to credit to the account balance.
+            examples:
+              small_credit:
+                amount: 500
+              large_credit:
+                amount: 5000
+        responses:
+          200:
+            description: Account credited successfully
+            body:
+              application/json:
+                type: Account
+                examples:
+                  successful_credit:
+                    account_id: "123e4567-e89b-12d3-a456-426614174000"
+                    type: "checking"
+                    balance: 2000
+          400:
+            description: Credit operation failed due to invalid amount
+            body:
+              application/json:
+                type: ErrorResponse
+                examples:
+                  invalid_amount:
+                    error_code: "INVALID_INPUT"
+                    message: "Failed to credit account: Amount must be positive"
+          404:
+            description: Credit operation failed - account not found
+            body:
+              application/json:
+                type: ErrorResponse
+                examples:
+                  not_found:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to credit account: Account does not exist"
+          500:
+            description: Failed to process credit operation due to internal server error
+            body:
+              application/json:
+                type: ErrorResponse
+                examples:
+                  server_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to credit account: Internal server error occurred"
