@@ -1,0 +1,1225 @@
+---
+openapi: "3.0.0"
+info:
+  title: "Accounts API"
+  description: "This API manages account information and balances."
+  version: "1.0.0"
+servers:
+- url: "http://localhost:8081"
+consumes:
+- "application/json"
+produces:
+- "application/json"
+schemes:
+- "HTTP"
+paths:
+  /health:
+    x-amf-displayName: "Health Check"
+    description: "Health check endpoints for monitoring service status"
+    get:
+      operationId: "Health check endpoint"
+      description: "Returns the API's health status"
+      responses:
+        200:
+          description: "API is healthy"
+          content:
+            application/json:
+              schema:
+                x-amf-examples:
+                  success: "Accounts API is running"
+                type: "string"
+    head:
+      operationId: "Health check endpoint (HEAD)"
+      description: "Returns the API's health status without body"
+      responses:
+        200:
+          description: "API is healthy"
+          content: {}
+  /accounts:
+    x-amf-displayName: "Accounts"
+    description: "Operations related to account management (retrieval and balance\
+      \ updates)"
+    get:
+      operationId: "List all accounts"
+      description: "Returns a list of all accounts with basic details."
+      responses:
+        200:
+          description: "A list of accounts was successfully retrieved"
+          content:
+            application/json:
+              schema:
+                x-amf-examples:
+                  multiple_accounts:
+                  - account_id: "123e4567-e89b-12d3-a456-426614174000"
+                    type: "checking"
+                    balance: 1500
+                  - account_id: "987fcdeb-51a2-43e7-89bc-765432198765"
+                    type: "savings"
+                    balance: 5000
+                type: "array"
+                items:
+                  description: "Represents a bank account with its core details including\
+                    \ ID, type, and current balance."
+                  x-amf-examples:
+                    example_0:
+                      account_id: "123e4567-e89b-12d3-a456-426614174000"
+                      type: "checking"
+                      balance: 1500
+                    new_account:
+                      account_id: "123e4567-e89b-12d3-a456-426614174000"
+                      type: "checking"
+                      balance: 1000
+                    checking_account:
+                      account_id: "123e4567-e89b-12d3-a456-426614174000"
+                      type: "checking"
+                      balance: 1500
+                    successful_debit:
+                      account_id: "123e4567-e89b-12d3-a456-426614174000"
+                      type: "checking"
+                      balance: 900
+                    successful_credit:
+                      account_id: "123e4567-e89b-12d3-a456-426614174000"
+                      type: "checking"
+                      balance: 2000
+                  type: "object"
+                  additionalProperties: true
+                  required:
+                  - "account_id"
+                  - "type"
+                  - "balance"
+                  properties:
+                    account_id:
+                      description: "Unique identifier for the account (UUID v4)"
+                      example: "123e4567-e89b-12d3-a456-426614174000"
+                      type: "string"
+                    type:
+                      description: "The type of the account (e.g., checking, savings)"
+                      example: "checking"
+                      type: "string"
+                    balance:
+                      description: "The current balance of the account in the account's\
+                        \ currency"
+                      example: 1500
+                      type: "number"
+        500:
+          description: "Failed to retrieve accounts due to internal server error"
+          content:
+            application/json:
+              schema:
+                description: "Standard error response structure for all error cases."
+                x-amf-examples:
+                  example_0:
+                    error_code: "NOT_FOUND"
+                    message: "The requested account does not exist."
+                  lock_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Lock error: failed to acquire lock while listing accounts"
+                  invalid_balance:
+                    error_code: "INVALID_INPUT"
+                    message: "Failed to create account: Initial balance must be non-negative"
+                  creation_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to create account: Internal server error occurred"
+                  not_found:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to retrieve account: ID 123e4567-e89b-12d3-a456-426614174000\
+                      \ not found"
+                  server_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to retrieve account: Internal server error occurred"
+                  insufficient_funds:
+                    error_code: "INSUFFICIENT_FUNDS"
+                    message: "Failed to debit account: Insufficient funds - balance\
+                      \ is 900.00, attempted to debit 1000.00"
+                  example_1:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to debit account: Account does not exist"
+                  example_2:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to debit account: Internal server error occurred"
+                  invalid_amount:
+                    error_code: "INVALID_INPUT"
+                    message: "Failed to credit account: Amount must be positive"
+                  example_3:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to credit account: Account does not exist"
+                  example_4:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to credit account: Internal server error occurred"
+                type: "object"
+                additionalProperties: true
+                required:
+                - "error_code"
+                - "message"
+                properties:
+                  error_code:
+                    description: "A standardized error code identifying the type of\
+                      \ error"
+                    enum:
+                    - "INTERNAL_ERROR"
+                    - "NOT_FOUND"
+                    - "INSUFFICIENT_FUNDS"
+                    - "INVALID_INPUT"
+                    example: "NOT_FOUND"
+                    type: "string"
+                  message:
+                    description: "A human-readable description of the error"
+                    example: "The requested account does not exist."
+                    type: "string"
+    post:
+      operationId: "Create a new account"
+      description: "Creates a new account with an initial balance. The account ID\
+        \ is automatically generated."
+      requestBody:
+        content:
+          application/json:
+            schema:
+              description: "Details for the new account including type and initial\
+                \ balance. The account ID will be automatically generated."
+              x-amf-examples:
+                checking_account:
+                  type: "checking"
+                  initial_balance: 1000
+                savings_account:
+                  type: "savings"
+                  initial_balance: 5000
+              type: "object"
+              additionalProperties: true
+              required:
+              - "initial_balance"
+              - "type"
+              properties:
+                initial_balance:
+                  description: "The initial balance to fund the account with"
+                  example: 5000
+                  type: "number"
+                type:
+                  description: "The type of account to create (e.g., checking, savings)"
+                  example: "savings"
+                  type: "string"
+      responses:
+        201:
+          description: "Account created successfully"
+          content:
+            application/json:
+              schema:
+                description: "Represents a bank account with its core details including\
+                  \ ID, type, and current balance."
+                x-amf-examples:
+                  example_0:
+                    account_id: "123e4567-e89b-12d3-a456-426614174000"
+                    type: "checking"
+                    balance: 1500
+                  new_account:
+                    account_id: "123e4567-e89b-12d3-a456-426614174000"
+                    type: "checking"
+                    balance: 1000
+                  checking_account:
+                    account_id: "123e4567-e89b-12d3-a456-426614174000"
+                    type: "checking"
+                    balance: 1500
+                  successful_debit:
+                    account_id: "123e4567-e89b-12d3-a456-426614174000"
+                    type: "checking"
+                    balance: 900
+                  successful_credit:
+                    account_id: "123e4567-e89b-12d3-a456-426614174000"
+                    type: "checking"
+                    balance: 2000
+                type: "object"
+                additionalProperties: true
+                required:
+                - "account_id"
+                - "type"
+                - "balance"
+                properties:
+                  account_id:
+                    description: "Unique identifier for the account (UUID v4)"
+                    example: "123e4567-e89b-12d3-a456-426614174000"
+                    type: "string"
+                  type:
+                    description: "The type of the account (e.g., checking, savings)"
+                    example: "checking"
+                    type: "string"
+                  balance:
+                    description: "The current balance of the account in the account's\
+                      \ currency"
+                    example: 1500
+                    type: "number"
+        400:
+          description: "Failed to create account due to invalid input"
+          content:
+            application/json:
+              schema:
+                description: "Standard error response structure for all error cases."
+                x-amf-examples:
+                  example_0:
+                    error_code: "NOT_FOUND"
+                    message: "The requested account does not exist."
+                  lock_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Lock error: failed to acquire lock while listing accounts"
+                  invalid_balance:
+                    error_code: "INVALID_INPUT"
+                    message: "Failed to create account: Initial balance must be non-negative"
+                  creation_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to create account: Internal server error occurred"
+                  not_found:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to retrieve account: ID 123e4567-e89b-12d3-a456-426614174000\
+                      \ not found"
+                  server_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to retrieve account: Internal server error occurred"
+                  insufficient_funds:
+                    error_code: "INSUFFICIENT_FUNDS"
+                    message: "Failed to debit account: Insufficient funds - balance\
+                      \ is 900.00, attempted to debit 1000.00"
+                  example_1:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to debit account: Account does not exist"
+                  example_2:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to debit account: Internal server error occurred"
+                  invalid_amount:
+                    error_code: "INVALID_INPUT"
+                    message: "Failed to credit account: Amount must be positive"
+                  example_3:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to credit account: Account does not exist"
+                  example_4:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to credit account: Internal server error occurred"
+                type: "object"
+                additionalProperties: true
+                required:
+                - "error_code"
+                - "message"
+                properties:
+                  error_code:
+                    description: "A standardized error code identifying the type of\
+                      \ error"
+                    enum:
+                    - "INTERNAL_ERROR"
+                    - "NOT_FOUND"
+                    - "INSUFFICIENT_FUNDS"
+                    - "INVALID_INPUT"
+                    example: "NOT_FOUND"
+                    type: "string"
+                  message:
+                    description: "A human-readable description of the error"
+                    example: "The requested account does not exist."
+                    type: "string"
+        500:
+          description: "Failed to create account due to internal server error"
+          content:
+            application/json:
+              schema:
+                description: "Standard error response structure for all error cases."
+                x-amf-examples:
+                  example_0:
+                    error_code: "NOT_FOUND"
+                    message: "The requested account does not exist."
+                  lock_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Lock error: failed to acquire lock while listing accounts"
+                  invalid_balance:
+                    error_code: "INVALID_INPUT"
+                    message: "Failed to create account: Initial balance must be non-negative"
+                  creation_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to create account: Internal server error occurred"
+                  not_found:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to retrieve account: ID 123e4567-e89b-12d3-a456-426614174000\
+                      \ not found"
+                  server_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to retrieve account: Internal server error occurred"
+                  insufficient_funds:
+                    error_code: "INSUFFICIENT_FUNDS"
+                    message: "Failed to debit account: Insufficient funds - balance\
+                      \ is 900.00, attempted to debit 1000.00"
+                  example_1:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to debit account: Account does not exist"
+                  example_2:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to debit account: Internal server error occurred"
+                  invalid_amount:
+                    error_code: "INVALID_INPUT"
+                    message: "Failed to credit account: Amount must be positive"
+                  example_3:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to credit account: Account does not exist"
+                  example_4:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to credit account: Internal server error occurred"
+                type: "object"
+                additionalProperties: true
+                required:
+                - "error_code"
+                - "message"
+                properties:
+                  error_code:
+                    description: "A standardized error code identifying the type of\
+                      \ error"
+                    enum:
+                    - "INTERNAL_ERROR"
+                    - "NOT_FOUND"
+                    - "INSUFFICIENT_FUNDS"
+                    - "INVALID_INPUT"
+                    example: "NOT_FOUND"
+                    type: "string"
+                  message:
+                    description: "A human-readable description of the error"
+                    example: "The requested account does not exist."
+                    type: "string"
+  /accounts/{accountId}:
+    x-amf-displayName: "Account by ID"
+    parameters:
+    - name: "accountId"
+      description: "The UUID of the account to retrieve"
+      required: true
+      in: "path"
+      schema:
+        description: "The UUID of the account to retrieve"
+        example: "123e4567-e89b-12d3-a456-426614174000"
+        type: "string"
+    get:
+      operationId: "Retrieve a single account"
+      description: "Returns details for the specified account including current balance."
+      responses:
+        200:
+          description: "Account details retrieved successfully"
+          content:
+            application/json:
+              schema:
+                description: "Represents a bank account with its core details including\
+                  \ ID, type, and current balance."
+                x-amf-examples:
+                  example_0:
+                    account_id: "123e4567-e89b-12d3-a456-426614174000"
+                    type: "checking"
+                    balance: 1500
+                  new_account:
+                    account_id: "123e4567-e89b-12d3-a456-426614174000"
+                    type: "checking"
+                    balance: 1000
+                  checking_account:
+                    account_id: "123e4567-e89b-12d3-a456-426614174000"
+                    type: "checking"
+                    balance: 1500
+                  successful_debit:
+                    account_id: "123e4567-e89b-12d3-a456-426614174000"
+                    type: "checking"
+                    balance: 900
+                  successful_credit:
+                    account_id: "123e4567-e89b-12d3-a456-426614174000"
+                    type: "checking"
+                    balance: 2000
+                type: "object"
+                additionalProperties: true
+                required:
+                - "account_id"
+                - "type"
+                - "balance"
+                properties:
+                  account_id:
+                    description: "Unique identifier for the account (UUID v4)"
+                    example: "123e4567-e89b-12d3-a456-426614174000"
+                    type: "string"
+                  type:
+                    description: "The type of the account (e.g., checking, savings)"
+                    example: "checking"
+                    type: "string"
+                  balance:
+                    description: "The current balance of the account in the account's\
+                      \ currency"
+                    example: 1500
+                    type: "number"
+        404:
+          description: "Account lookup failed - specified account ID does not exist"
+          content:
+            application/json:
+              schema:
+                description: "Standard error response structure for all error cases."
+                x-amf-examples:
+                  example_0:
+                    error_code: "NOT_FOUND"
+                    message: "The requested account does not exist."
+                  lock_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Lock error: failed to acquire lock while listing accounts"
+                  invalid_balance:
+                    error_code: "INVALID_INPUT"
+                    message: "Failed to create account: Initial balance must be non-negative"
+                  creation_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to create account: Internal server error occurred"
+                  not_found:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to retrieve account: ID 123e4567-e89b-12d3-a456-426614174000\
+                      \ not found"
+                  server_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to retrieve account: Internal server error occurred"
+                  insufficient_funds:
+                    error_code: "INSUFFICIENT_FUNDS"
+                    message: "Failed to debit account: Insufficient funds - balance\
+                      \ is 900.00, attempted to debit 1000.00"
+                  example_1:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to debit account: Account does not exist"
+                  example_2:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to debit account: Internal server error occurred"
+                  invalid_amount:
+                    error_code: "INVALID_INPUT"
+                    message: "Failed to credit account: Amount must be positive"
+                  example_3:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to credit account: Account does not exist"
+                  example_4:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to credit account: Internal server error occurred"
+                type: "object"
+                additionalProperties: true
+                required:
+                - "error_code"
+                - "message"
+                properties:
+                  error_code:
+                    description: "A standardized error code identifying the type of\
+                      \ error"
+                    enum:
+                    - "INTERNAL_ERROR"
+                    - "NOT_FOUND"
+                    - "INSUFFICIENT_FUNDS"
+                    - "INVALID_INPUT"
+                    example: "NOT_FOUND"
+                    type: "string"
+                  message:
+                    description: "A human-readable description of the error"
+                    example: "The requested account does not exist."
+                    type: "string"
+        500:
+          description: "Failed to retrieve account details due to internal server\
+            \ error"
+          content:
+            application/json:
+              schema:
+                description: "Standard error response structure for all error cases."
+                x-amf-examples:
+                  example_0:
+                    error_code: "NOT_FOUND"
+                    message: "The requested account does not exist."
+                  lock_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Lock error: failed to acquire lock while listing accounts"
+                  invalid_balance:
+                    error_code: "INVALID_INPUT"
+                    message: "Failed to create account: Initial balance must be non-negative"
+                  creation_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to create account: Internal server error occurred"
+                  not_found:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to retrieve account: ID 123e4567-e89b-12d3-a456-426614174000\
+                      \ not found"
+                  server_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to retrieve account: Internal server error occurred"
+                  insufficient_funds:
+                    error_code: "INSUFFICIENT_FUNDS"
+                    message: "Failed to debit account: Insufficient funds - balance\
+                      \ is 900.00, attempted to debit 1000.00"
+                  example_1:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to debit account: Account does not exist"
+                  example_2:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to debit account: Internal server error occurred"
+                  invalid_amount:
+                    error_code: "INVALID_INPUT"
+                    message: "Failed to credit account: Amount must be positive"
+                  example_3:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to credit account: Account does not exist"
+                  example_4:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to credit account: Internal server error occurred"
+                type: "object"
+                additionalProperties: true
+                required:
+                - "error_code"
+                - "message"
+                properties:
+                  error_code:
+                    description: "A standardized error code identifying the type of\
+                      \ error"
+                    enum:
+                    - "INTERNAL_ERROR"
+                    - "NOT_FOUND"
+                    - "INSUFFICIENT_FUNDS"
+                    - "INVALID_INPUT"
+                    example: "NOT_FOUND"
+                    type: "string"
+                  message:
+                    description: "A human-readable description of the error"
+                    example: "The requested account does not exist."
+                    type: "string"
+  /accounts/{accountId}/debit:
+    x-amf-displayName: "Debit Account"
+    parameters:
+    - name: "accountId"
+      description: "The UUID of the account to retrieve"
+      required: true
+      in: "path"
+      schema:
+        description: "The UUID of the account to retrieve"
+        example: "123e4567-e89b-12d3-a456-426614174000"
+        type: "string"
+    post:
+      operationId: "Debit an account"
+      description: "Decreases the account's balance by the specified amount."
+      requestBody:
+        content:
+          application/json:
+            schema:
+              description: "Specifies the amount to debit from the account balance."
+              x-amf-examples:
+                small_debit:
+                  amount: 100
+                large_debit:
+                  amount: 1000
+              type: "object"
+              additionalProperties: true
+              required:
+              - "amount"
+              properties:
+                amount:
+                  description: "The amount to credit or debit from the account"
+                  example: 100
+                  type: "number"
+      responses:
+        200:
+          description: "Account debited successfully"
+          content:
+            application/json:
+              schema:
+                description: "Represents a bank account with its core details including\
+                  \ ID, type, and current balance."
+                x-amf-examples:
+                  example_0:
+                    account_id: "123e4567-e89b-12d3-a456-426614174000"
+                    type: "checking"
+                    balance: 1500
+                  new_account:
+                    account_id: "123e4567-e89b-12d3-a456-426614174000"
+                    type: "checking"
+                    balance: 1000
+                  checking_account:
+                    account_id: "123e4567-e89b-12d3-a456-426614174000"
+                    type: "checking"
+                    balance: 1500
+                  successful_debit:
+                    account_id: "123e4567-e89b-12d3-a456-426614174000"
+                    type: "checking"
+                    balance: 900
+                  successful_credit:
+                    account_id: "123e4567-e89b-12d3-a456-426614174000"
+                    type: "checking"
+                    balance: 2000
+                type: "object"
+                additionalProperties: true
+                required:
+                - "account_id"
+                - "type"
+                - "balance"
+                properties:
+                  account_id:
+                    description: "Unique identifier for the account (UUID v4)"
+                    example: "123e4567-e89b-12d3-a456-426614174000"
+                    type: "string"
+                  type:
+                    description: "The type of the account (e.g., checking, savings)"
+                    example: "checking"
+                    type: "string"
+                  balance:
+                    description: "The current balance of the account in the account's\
+                      \ currency"
+                    example: 1500
+                    type: "number"
+        400:
+          description: "Debit operation failed due to insufficient funds or invalid\
+            \ amount"
+          content:
+            application/json:
+              schema:
+                description: "Standard error response structure for all error cases."
+                x-amf-examples:
+                  example_0:
+                    error_code: "NOT_FOUND"
+                    message: "The requested account does not exist."
+                  lock_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Lock error: failed to acquire lock while listing accounts"
+                  invalid_balance:
+                    error_code: "INVALID_INPUT"
+                    message: "Failed to create account: Initial balance must be non-negative"
+                  creation_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to create account: Internal server error occurred"
+                  not_found:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to retrieve account: ID 123e4567-e89b-12d3-a456-426614174000\
+                      \ not found"
+                  server_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to retrieve account: Internal server error occurred"
+                  insufficient_funds:
+                    error_code: "INSUFFICIENT_FUNDS"
+                    message: "Failed to debit account: Insufficient funds - balance\
+                      \ is 900.00, attempted to debit 1000.00"
+                  example_1:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to debit account: Account does not exist"
+                  example_2:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to debit account: Internal server error occurred"
+                  invalid_amount:
+                    error_code: "INVALID_INPUT"
+                    message: "Failed to credit account: Amount must be positive"
+                  example_3:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to credit account: Account does not exist"
+                  example_4:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to credit account: Internal server error occurred"
+                type: "object"
+                additionalProperties: true
+                required:
+                - "error_code"
+                - "message"
+                properties:
+                  error_code:
+                    description: "A standardized error code identifying the type of\
+                      \ error"
+                    enum:
+                    - "INTERNAL_ERROR"
+                    - "NOT_FOUND"
+                    - "INSUFFICIENT_FUNDS"
+                    - "INVALID_INPUT"
+                    example: "NOT_FOUND"
+                    type: "string"
+                  message:
+                    description: "A human-readable description of the error"
+                    example: "The requested account does not exist."
+                    type: "string"
+        404:
+          description: "Debit operation failed - account not found"
+          content:
+            application/json:
+              schema:
+                description: "Standard error response structure for all error cases."
+                x-amf-examples:
+                  example_0:
+                    error_code: "NOT_FOUND"
+                    message: "The requested account does not exist."
+                  lock_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Lock error: failed to acquire lock while listing accounts"
+                  invalid_balance:
+                    error_code: "INVALID_INPUT"
+                    message: "Failed to create account: Initial balance must be non-negative"
+                  creation_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to create account: Internal server error occurred"
+                  not_found:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to retrieve account: ID 123e4567-e89b-12d3-a456-426614174000\
+                      \ not found"
+                  server_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to retrieve account: Internal server error occurred"
+                  insufficient_funds:
+                    error_code: "INSUFFICIENT_FUNDS"
+                    message: "Failed to debit account: Insufficient funds - balance\
+                      \ is 900.00, attempted to debit 1000.00"
+                  example_1:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to debit account: Account does not exist"
+                  example_2:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to debit account: Internal server error occurred"
+                  invalid_amount:
+                    error_code: "INVALID_INPUT"
+                    message: "Failed to credit account: Amount must be positive"
+                  example_3:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to credit account: Account does not exist"
+                  example_4:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to credit account: Internal server error occurred"
+                type: "object"
+                additionalProperties: true
+                required:
+                - "error_code"
+                - "message"
+                properties:
+                  error_code:
+                    description: "A standardized error code identifying the type of\
+                      \ error"
+                    enum:
+                    - "INTERNAL_ERROR"
+                    - "NOT_FOUND"
+                    - "INSUFFICIENT_FUNDS"
+                    - "INVALID_INPUT"
+                    example: "NOT_FOUND"
+                    type: "string"
+                  message:
+                    description: "A human-readable description of the error"
+                    example: "The requested account does not exist."
+                    type: "string"
+        500:
+          description: "Failed to process debit operation due to internal server error"
+          content:
+            application/json:
+              schema:
+                description: "Standard error response structure for all error cases."
+                x-amf-examples:
+                  example_0:
+                    error_code: "NOT_FOUND"
+                    message: "The requested account does not exist."
+                  lock_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Lock error: failed to acquire lock while listing accounts"
+                  invalid_balance:
+                    error_code: "INVALID_INPUT"
+                    message: "Failed to create account: Initial balance must be non-negative"
+                  creation_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to create account: Internal server error occurred"
+                  not_found:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to retrieve account: ID 123e4567-e89b-12d3-a456-426614174000\
+                      \ not found"
+                  server_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to retrieve account: Internal server error occurred"
+                  insufficient_funds:
+                    error_code: "INSUFFICIENT_FUNDS"
+                    message: "Failed to debit account: Insufficient funds - balance\
+                      \ is 900.00, attempted to debit 1000.00"
+                  example_1:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to debit account: Account does not exist"
+                  example_2:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to debit account: Internal server error occurred"
+                  invalid_amount:
+                    error_code: "INVALID_INPUT"
+                    message: "Failed to credit account: Amount must be positive"
+                  example_3:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to credit account: Account does not exist"
+                  example_4:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to credit account: Internal server error occurred"
+                type: "object"
+                additionalProperties: true
+                required:
+                - "error_code"
+                - "message"
+                properties:
+                  error_code:
+                    description: "A standardized error code identifying the type of\
+                      \ error"
+                    enum:
+                    - "INTERNAL_ERROR"
+                    - "NOT_FOUND"
+                    - "INSUFFICIENT_FUNDS"
+                    - "INVALID_INPUT"
+                    example: "NOT_FOUND"
+                    type: "string"
+                  message:
+                    description: "A human-readable description of the error"
+                    example: "The requested account does not exist."
+                    type: "string"
+  /accounts/{accountId}/credit:
+    x-amf-displayName: "Credit Account"
+    parameters:
+    - name: "accountId"
+      description: "The UUID of the account to retrieve"
+      required: true
+      in: "path"
+      schema:
+        description: "The UUID of the account to retrieve"
+        example: "123e4567-e89b-12d3-a456-426614174000"
+        type: "string"
+    post:
+      operationId: "Credit an account"
+      description: "Increases the account's balance by the specified amount."
+      requestBody:
+        content:
+          application/json:
+            schema:
+              description: "Specifies the amount to credit to the account balance."
+              x-amf-examples:
+                small_credit:
+                  amount: 500
+                large_credit:
+                  amount: 5000
+              type: "object"
+              additionalProperties: true
+              required:
+              - "amount"
+              properties:
+                amount:
+                  description: "The amount to credit or debit from the account"
+                  example: 100
+                  type: "number"
+      responses:
+        200:
+          description: "Account credited successfully"
+          content:
+            application/json:
+              schema:
+                description: "Represents a bank account with its core details including\
+                  \ ID, type, and current balance."
+                x-amf-examples:
+                  example_0:
+                    account_id: "123e4567-e89b-12d3-a456-426614174000"
+                    type: "checking"
+                    balance: 1500
+                  new_account:
+                    account_id: "123e4567-e89b-12d3-a456-426614174000"
+                    type: "checking"
+                    balance: 1000
+                  checking_account:
+                    account_id: "123e4567-e89b-12d3-a456-426614174000"
+                    type: "checking"
+                    balance: 1500
+                  successful_debit:
+                    account_id: "123e4567-e89b-12d3-a456-426614174000"
+                    type: "checking"
+                    balance: 900
+                  successful_credit:
+                    account_id: "123e4567-e89b-12d3-a456-426614174000"
+                    type: "checking"
+                    balance: 2000
+                type: "object"
+                additionalProperties: true
+                required:
+                - "account_id"
+                - "type"
+                - "balance"
+                properties:
+                  account_id:
+                    description: "Unique identifier for the account (UUID v4)"
+                    example: "123e4567-e89b-12d3-a456-426614174000"
+                    type: "string"
+                  type:
+                    description: "The type of the account (e.g., checking, savings)"
+                    example: "checking"
+                    type: "string"
+                  balance:
+                    description: "The current balance of the account in the account's\
+                      \ currency"
+                    example: 1500
+                    type: "number"
+        400:
+          description: "Credit operation failed due to invalid amount"
+          content:
+            application/json:
+              schema:
+                description: "Standard error response structure for all error cases."
+                x-amf-examples:
+                  example_0:
+                    error_code: "NOT_FOUND"
+                    message: "The requested account does not exist."
+                  lock_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Lock error: failed to acquire lock while listing accounts"
+                  invalid_balance:
+                    error_code: "INVALID_INPUT"
+                    message: "Failed to create account: Initial balance must be non-negative"
+                  creation_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to create account: Internal server error occurred"
+                  not_found:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to retrieve account: ID 123e4567-e89b-12d3-a456-426614174000\
+                      \ not found"
+                  server_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to retrieve account: Internal server error occurred"
+                  insufficient_funds:
+                    error_code: "INSUFFICIENT_FUNDS"
+                    message: "Failed to debit account: Insufficient funds - balance\
+                      \ is 900.00, attempted to debit 1000.00"
+                  example_1:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to debit account: Account does not exist"
+                  example_2:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to debit account: Internal server error occurred"
+                  invalid_amount:
+                    error_code: "INVALID_INPUT"
+                    message: "Failed to credit account: Amount must be positive"
+                  example_3:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to credit account: Account does not exist"
+                  example_4:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to credit account: Internal server error occurred"
+                type: "object"
+                additionalProperties: true
+                required:
+                - "error_code"
+                - "message"
+                properties:
+                  error_code:
+                    description: "A standardized error code identifying the type of\
+                      \ error"
+                    enum:
+                    - "INTERNAL_ERROR"
+                    - "NOT_FOUND"
+                    - "INSUFFICIENT_FUNDS"
+                    - "INVALID_INPUT"
+                    example: "NOT_FOUND"
+                    type: "string"
+                  message:
+                    description: "A human-readable description of the error"
+                    example: "The requested account does not exist."
+                    type: "string"
+        404:
+          description: "Credit operation failed - account not found"
+          content:
+            application/json:
+              schema:
+                description: "Standard error response structure for all error cases."
+                x-amf-examples:
+                  example_0:
+                    error_code: "NOT_FOUND"
+                    message: "The requested account does not exist."
+                  lock_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Lock error: failed to acquire lock while listing accounts"
+                  invalid_balance:
+                    error_code: "INVALID_INPUT"
+                    message: "Failed to create account: Initial balance must be non-negative"
+                  creation_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to create account: Internal server error occurred"
+                  not_found:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to retrieve account: ID 123e4567-e89b-12d3-a456-426614174000\
+                      \ not found"
+                  server_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to retrieve account: Internal server error occurred"
+                  insufficient_funds:
+                    error_code: "INSUFFICIENT_FUNDS"
+                    message: "Failed to debit account: Insufficient funds - balance\
+                      \ is 900.00, attempted to debit 1000.00"
+                  example_1:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to debit account: Account does not exist"
+                  example_2:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to debit account: Internal server error occurred"
+                  invalid_amount:
+                    error_code: "INVALID_INPUT"
+                    message: "Failed to credit account: Amount must be positive"
+                  example_3:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to credit account: Account does not exist"
+                  example_4:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to credit account: Internal server error occurred"
+                type: "object"
+                additionalProperties: true
+                required:
+                - "error_code"
+                - "message"
+                properties:
+                  error_code:
+                    description: "A standardized error code identifying the type of\
+                      \ error"
+                    enum:
+                    - "INTERNAL_ERROR"
+                    - "NOT_FOUND"
+                    - "INSUFFICIENT_FUNDS"
+                    - "INVALID_INPUT"
+                    example: "NOT_FOUND"
+                    type: "string"
+                  message:
+                    description: "A human-readable description of the error"
+                    example: "The requested account does not exist."
+                    type: "string"
+        500:
+          description: "Failed to process credit operation due to internal server\
+            \ error"
+          content:
+            application/json:
+              schema:
+                description: "Standard error response structure for all error cases."
+                x-amf-examples:
+                  example_0:
+                    error_code: "NOT_FOUND"
+                    message: "The requested account does not exist."
+                  lock_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Lock error: failed to acquire lock while listing accounts"
+                  invalid_balance:
+                    error_code: "INVALID_INPUT"
+                    message: "Failed to create account: Initial balance must be non-negative"
+                  creation_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to create account: Internal server error occurred"
+                  not_found:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to retrieve account: ID 123e4567-e89b-12d3-a456-426614174000\
+                      \ not found"
+                  server_error:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to retrieve account: Internal server error occurred"
+                  insufficient_funds:
+                    error_code: "INSUFFICIENT_FUNDS"
+                    message: "Failed to debit account: Insufficient funds - balance\
+                      \ is 900.00, attempted to debit 1000.00"
+                  example_1:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to debit account: Account does not exist"
+                  example_2:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to debit account: Internal server error occurred"
+                  invalid_amount:
+                    error_code: "INVALID_INPUT"
+                    message: "Failed to credit account: Amount must be positive"
+                  example_3:
+                    error_code: "NOT_FOUND"
+                    message: "Failed to credit account: Account does not exist"
+                  example_4:
+                    error_code: "INTERNAL_ERROR"
+                    message: "Failed to credit account: Internal server error occurred"
+                type: "object"
+                additionalProperties: true
+                required:
+                - "error_code"
+                - "message"
+                properties:
+                  error_code:
+                    description: "A standardized error code identifying the type of\
+                      \ error"
+                    enum:
+                    - "INTERNAL_ERROR"
+                    - "NOT_FOUND"
+                    - "INSUFFICIENT_FUNDS"
+                    - "INVALID_INPUT"
+                    example: "NOT_FOUND"
+                    type: "string"
+                  message:
+                    description: "A human-readable description of the error"
+                    example: "The requested account does not exist."
+                    type: "string"
+components:
+  schemas:
+    Account:
+      description: "Represents a bank account with its core details including ID,\
+        \ type, and current balance."
+      x-amf-examples:
+        example_0:
+          account_id: "123e4567-e89b-12d3-a456-426614174000"
+          type: "checking"
+          balance: 1500
+      type: "object"
+      additionalProperties: true
+      required:
+      - "account_id"
+      - "type"
+      - "balance"
+      properties:
+        account_id:
+          description: "Unique identifier for the account (UUID v4)"
+          example: "123e4567-e89b-12d3-a456-426614174000"
+          type: "string"
+        type:
+          description: "The type of the account (e.g., checking, savings)"
+          example: "checking"
+          type: "string"
+        balance:
+          description: "The current balance of the account in the account's currency"
+          example: 1500
+          type: "number"
+    CreateAccountRequest:
+      description: "Request payload for creating a new account."
+      example:
+        type: "savings"
+        initial_balance: 5000
+      type: "object"
+      additionalProperties: true
+      required:
+      - "type"
+      - "initial_balance"
+      properties:
+        type:
+          description: "The type of account to create (e.g., checking, savings)"
+          example: "savings"
+          type: "string"
+        initial_balance:
+          description: "The initial balance to fund the account with"
+          example: 5000
+          type: "number"
+    UpdateBalanceRequest:
+      description: "Request payload for updating an account's balance via credit or\
+        \ debit operations."
+      example:
+        amount: 100
+      type: "object"
+      additionalProperties: true
+      required:
+      - "amount"
+      properties:
+        amount:
+          description: "The amount to credit or debit from the account"
+          example: 100
+          type: "number"
+    ErrorResponse:
+      description: "Standard error response structure for all error cases."
+      x-amf-examples:
+        example_0:
+          error_code: "NOT_FOUND"
+          message: "The requested account does not exist."
+      type: "object"
+      additionalProperties: true
+      required:
+      - "error_code"
+      - "message"
+      properties:
+        error_code:
+          description: "A standardized error code identifying the type of error"
+          enum:
+          - "INTERNAL_ERROR"
+          - "NOT_FOUND"
+          - "INSUFFICIENT_FUNDS"
+          - "INVALID_INPUT"
+          example: "NOT_FOUND"
+          type: "string"
+        message:
+          description: "A human-readable description of the error"
+          example: "The requested account does not exist."
+          type: "string"
+  x-amf-annotationTypes:
+    contact:
+      schema:
+        type: "object"
+        additionalProperties: true
+        required:
+        - "email"
+        properties:
+          email:
+            type: "string"
